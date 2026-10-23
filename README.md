@@ -96,7 +96,7 @@ For full local steps and shutdown guidance, see the [local development runbook](
 
 ## Core API foundation
 
-The new `services/core-api` build is independent of the existing `services/pom.xml` prototype parent. It uses Java 21, Spring Boot 3.5.16, Maven Wrapper, PostgreSQL, and Flyway. It provides Customer Management and a Product catalog with versioned coverage configuration, plus `GET /api/v1/health`, actuator health/info endpoints, RFC 9457 error responses, and validated `X-Correlation-ID` propagation. Migrations V1–V3 create the customer, product, version, and coverage tables. Authentication and authorization are not implemented. See the [Customer](libs/contracts/openapi/customer-api.yaml) and [Product](libs/contracts/openapi/product-api.yaml) OpenAPI contracts, [Core API package and lifecycle guidance](docs/architecture/core-api-foundation.md), and [persistence and API errors](docs/architecture/persistence-and-api-errors.md).
+The new `services/core-api` build is independent of the existing `services/pom.xml` prototype parent. It uses Java 21, Spring Boot 3.5.16, Maven Wrapper, PostgreSQL, and Flyway. It provides Customer Management, a Product catalog with versioned coverage configuration, and initial Quote Management, plus health endpoints, RFC 9457 error responses, and validated `X-Correlation-ID` propagation. Migrations V1–V8 create the customer, product, quote, and identity mapping structures, including currency precision and database-enforced immutable quote coverage snapshots. New quotes remain `NOT_CALCULATED`; no premium is stored or returned. The Core API validates JWTs and protects business routes with explicit scopes; customer self-service remains disabled until trusted identity provisioning and end-to-end ownership enforcement are implemented. No identity provider is selected, so deploy `JWT_ISSUER_URI` and `JWT_AUDIENCE` from your approved provider before using protected endpoints. See the [Customer](libs/contracts/openapi/customer-api.yaml), [Product](libs/contracts/openapi/product-api.yaml), and [Quote](libs/contracts/openapi/quote-api.yaml) OpenAPI contracts, [Core API package and lifecycle guidance](docs/architecture/core-api-foundation.md), and [persistence and API errors](docs/architecture/persistence-and-api-errors.md). The separate quote prototype and web integration are unchanged.
 
 Start its isolated PostgreSQL container and Core API:
 
@@ -107,7 +107,7 @@ docker compose --project-directory infra/local/core-api -f infra/local/core-api/
 
 The Core API PostgreSQL container maps to port 5433 by default and uses a separate named volume. It does not change the prototype PostgreSQL + Kafka stack. To run Core API checks, use `./services/core-api/mvnw -f services/core-api/pom.xml verify`; the PostgreSQL Testcontainers test is skipped if Docker is unavailable. See [Core API foundation](docs/architecture/core-api-foundation.md) for configuration and package guidance.
 
-The application reads `DATABASE_URL`, `DATABASE_USER`, and `DATABASE_PASSWORD`. The default profile requires these to be set for a real database connection; the explicit `local` profile supplies development-only localhost defaults. To use any overrides from the Compose `.env` file, export them into the shell before starting the API:
+The application reads `DATABASE_URL`, `DATABASE_USER`, and `DATABASE_PASSWORD`. The default profile requires these to be set for a real database connection; the explicit `local` profile supplies development-only localhost defaults. Protected routes remain inaccessible until `JWT_ISSUER_URI` and `JWT_AUDIENCE` are configured for a trusted issuer; local development does not provide a permissive or unsigned-token fallback. Set `APP_CORS_ALLOWED_ORIGINS` to explicit browser origins when cross-origin access is needed. To use any overrides from the Compose `.env` file, export them into the shell before starting the API:
 
 ~~~bash
 set -a
@@ -125,6 +125,8 @@ curl http://localhost:8080/actuator/info
 ~~~
 
 Create and list individual customers:
+
+These examples show the request shapes. The protected routes return `401` until you provide a bearer access token issued by the configured trusted provider and matching `JWT_AUDIENCE`; add `-H 'Authorization: Bearer <access-token>'` to the requests. This repository does not include a local token issuer or test-token endpoint.
 
 ~~~bash
 curl -i -X POST http://localhost:8080/api/v1/customers \
@@ -156,13 +158,13 @@ Run all Core API checks, including the PostgreSQL Testcontainers tests (Docker r
 
 1. Establish and validate the architecture and dependency baseline; reconcile the existing prototype with the target Spring Boot, migration, and messaging choices.
 2. Build a secure Core API with modular customer, product, quote, underwriting, policy, claims, payment, document, and notification capabilities.
-3. Add contract-first API documentation, authorization, audit history, and automated unit/integration tests with CI.
+3. Complete OpenAPI validation, identity provisioning/ownership rules, audit history, and automated unit/integration tests with CI.
 4. Add asynchronous workflows with SQS and transactional outbox/inbox handling where reliability or workload isolation requires them.
 5. Add document storage and retention with S3 when the data classification and retention policy are agreed.
 6. Add an AI assistant with permission-aware retrieval and tightly controlled actions; keep decisions and approvals in deterministic business workflows.
 7. Deploy a small, cost-reviewed AWS footprint using ECS Fargate, RDS PostgreSQL, S3, and CloudWatch after deployment/security requirements are agreed.
 
-Customer Management and the Product catalog/versioning are implemented in the independent Core API. Quote and subsequent modules, production identity/authorization, and cloud infrastructure remain future stages.
+Customer Management, Product catalog/versioning, initial Quote Management, and fail-closed JWT scope enforcement are implemented in the independent Core API. Trusted customer identity provisioning, customer self-service ownership enforcement, full pricing/underwriting/policy workflows, and cloud infrastructure remain future stages.
 
 ## Architecture and security
 

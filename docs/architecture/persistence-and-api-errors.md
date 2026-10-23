@@ -15,7 +15,7 @@ These conventions apply to the Spring Boot 3.5 Core API at `services/core-api`. 
 
 Flyway SQL is the authoritative schema change mechanism for `core-api`. Hibernate is configured with `ddl-auto: validate`; it must never create, update, or drop production schema. Flyway validation is enabled and `flyway clean` is disabled in application configuration.
 
-The initial business migrations are `V1__create_customers.sql`, `V2__create_products.sql`, and `V3__create_product_versions_and_coverages.sql`. Future migrations must:
+The current migration sequence is V1–V8: customer and product tables, quote/vehicle and coverage snapshot tables, declared currency precision, customer identity links, and quote snapshot immutability. V1–V8 are historical once applied and must not be edited. Future migrations must:
 
 1. Add a versioned PostgreSQL SQL migration under `services/core-api/src/main/resources/db/migration/`, using `V<version>__<short_description>.sql`, for example `V4__add_product_audit_fields.sql`.
 2. Keep a migration atomic where the database supports it, explicit, and limited to the owning module's schema objects. Include constraints in the same change as their invariant.
@@ -27,13 +27,17 @@ Customer schema choices for V1: `customers` uses a UUID primary key, unique `cus
 
 Product schema choices for V2 and V3: product metadata, numbered versions, and coverage definitions are normalized into `products`, `product_versions`, and `product_version_coverages`. Version number and coverage code are unique within their owning parent. Effective ranges require end-after-start; activation serializes against the parent product and rejects overlapping active ranges. No monetary columns or jurisdiction-specific limits are defined.
 
-Flyway creates its own `flyway_schema_history` metadata table. This is migration bookkeeping, not a business table. The PostgreSQL integration test verifies that V1 is applied and the customer table exists.
+Quote schema choices for V4–V6: quotes retain customer/product/version references, vehicle-risk values, and a relational coverage snapshot. Customer and product-version deletion is restricted while referenced. Declared vehicle value uses `numeric(16,4)` storage and is validated in the API against the JDK ISO 4217 minor-unit metadata for the supplied currency. V7 stores exact `(issuer, subject)` identity keys with a customer FK and a creation audit actor string; no provisioning workflow or email/phone matching is implemented. V8 rejects update/delete of quote coverage snapshots in PostgreSQL and restricts deleting their owning quote. No deployed database migration state was available during this audit; inspect each target's `flyway_schema_history` and rehearse migration/backups before rollout.
+
+V4 intentionally adds cross-module foreign keys from Quote to Customer/Product-owned rows. This is an explicit Core API modular-monolith choice: the modules share one Flyway-managed PostgreSQL schema, and quote creation validates the references in the same transaction. The database constraints prevent orphaned references and product/version mismatches even if a future application path bypasses the service check. These constraints do not authorize a caller to access the referenced customer.
+
+Flyway creates its own `flyway_schema_history` metadata table. This is migration bookkeeping, not a business table. The PostgreSQL integration test verifies the full migration sequence on a fresh database and checks key relational constraints.
 
 `spring.datasource.url`, `spring.datasource.username`, and `spring.datasource.password` are externalized as `DATABASE_URL`, `DATABASE_USER`, and `DATABASE_PASSWORD`. Local development uses `application-local.yml` and the isolated PostgreSQL Compose setup. Production should inject credentials from its approved secret manager; do not put them in application YAML, source control, or command-line arguments captured in shell history.
 
 ## Module ownership and transactions
 
-Each logical Core API module exclusively owns writes to its tables and defines its persistence operations. Do not let one module update another module's tables directly. Cross-module work uses the other module's public application interface and stable IDs.
+Each logical Core API module exclusively owns writes to its tables and defines its persistence operations. Do not let one module update another module's tables directly. Cross-module work uses the other module's public application interface and stable IDs. Quote creation delegates customer existence and product/version availability plus aggregate locking to Customer and Product application services; Quote persists only its own aggregate, vehicle-risk rows, and coverage snapshots.
 
 When business operations are introduced, define transaction boundaries on application-service operations that represent one atomic use case. Keep transaction management out of web controllers. Use the outbox pattern only when a real committed change must be delivered asynchronously; it is not part of this foundation.
 
@@ -87,7 +91,7 @@ A correlation ID is diagnostic metadata only. Never use it as identity, authoriz
 
 ## Verification
 
-Run the focused Core API checks:
+Run the Core API unit and PostgreSQL integration checks:
 
 ~~~bash
 ./services/core-api/mvnw -f services/core-api/pom.xml verify

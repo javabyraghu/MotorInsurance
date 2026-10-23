@@ -14,9 +14,9 @@ Store document bytes in S3 when the document workflow and retention requirements
 
 ## Current repository implementation
 
-The repository already contains a React + TypeScript app and three independent Spring Boot modules for quote, policy, and claims. They currently use Spring Boot 4.1.1, PostgreSQL, Liquibase, and a Kafka quote outbox. Each service has separate database ownership. Customer and AI assistant directories are documentation placeholders.
+The repository contains a React + TypeScript app, three preserved Spring Boot prototype services for quote, policy, and claims, and an independent Spring Boot 3.5 Core API with Customer, Product, initial Quote, JWT scope authorization, and Flyway migrations. The prototypes use Spring Boot 4.1.1, PostgreSQL, Liquibase, and a Kafka quote outbox; their previous service database ownership remains separate from the Core API's PostgreSQL/Flyway ownership. Customer identity provisioning, customer self-service authorization, and production deployment are not complete.
 
-This implementation is a preserved prototype and does not yet match the target stack or initial deployment shape. In particular, it does not use Spring Boot 3.5.x, Flyway, or SQS, and it starts with three independent backend deployables. Do not infer that the stack migration, service consolidation, production authorization, or cloud deployment has happened.
+The three original prototype services are preserved and do not yet match the target stack or deployment shape. The Core API uses Spring Boot 3.5.x and Flyway, but SQS, service consolidation, trusted identity provisioning, customer self-service ownership enforcement, and cloud deployment have not happened. Do not infer production readiness from the Core API's JWT route protection alone.
 
 ## Budget-conscious deployment direction
 

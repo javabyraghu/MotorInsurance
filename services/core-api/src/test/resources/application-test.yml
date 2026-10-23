@@ -11,3 +11,11 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+app:
+  security:
+    jwt:
+      issuer-uri: https://identity.test.motorsure.invalid
+      audience: motorsure-core-api-test
+    cors:
+      allowed-origins:
+        - https://app.example.test

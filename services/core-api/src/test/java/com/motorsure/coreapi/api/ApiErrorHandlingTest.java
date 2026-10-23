@@ -22,7 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = {HealthController.class, ErrorHandlingTestController.class})
-@Import({ApiExceptionHandler.class, CorrelationIdFilter.class})
+@Import({ApiExceptionHandler.class, CorrelationIdFilter.class, ApiErrorHandlingSecurityConfiguration.class})
 class ApiErrorHandlingTest {
 
     @Autowired

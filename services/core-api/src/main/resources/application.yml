@@ -25,6 +25,15 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
 
+app:
+  security:
+    jwt:
+      issuer-uri: ${JWT_ISSUER_URI:}
+      audience: ${JWT_AUDIENCE:}
+    cors:
+      # Empty means same-origin only. Set an explicit comma-separated allowlist for browser clients.
+      allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:}
+
 server:
   shutdown: graceful
   forward-headers-strategy: framework
@@ -44,6 +53,9 @@ management:
       show-details: never
       probes:
         enabled: true
+      group:
+        readiness:
+          include: readinessState,db
   info:
     env:
       enabled: false

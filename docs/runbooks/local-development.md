@@ -56,4 +56,4 @@ This stops containers and preserves the named PostgreSQL volume. Do not add -v u
 
 ## Current limitations
 
-The local Compose setup is a prototype with development-only credentials and plaintext Kafka. Do not expose it to an untrusted network or reuse these credentials outside local development. Authentication, object-level authorization, production secrets, AWS deployment, and SQS are not configured yet.
+The local Compose setup is a prototype with development-only credentials and plaintext Kafka. Do not expose it to an untrusted network or reuse these credentials outside local development. The independent Core API has fail-closed JWT scope authorization, but no identity provider is selected and customer self-service ownership is not implemented. Configure a trusted issuer and audience before using protected API routes. Production secrets, AWS deployment, and SQS are not configured.

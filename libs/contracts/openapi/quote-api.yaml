@@ -1,0 +1,266 @@
+openapi: 3.1.0
+info:
+  title: MotorSure Core API — Quote Management
+  version: 1.0.0
+  description: >-
+    Creates and manages unpriced quote requests. No premium calculation,
+    underwriting assessment, acceptance, or policy issuance is provided.
+    Requires a bearer JWT from the configured trusted issuer and exact API
+    audience. A database boundary for exact issuer-and-subject mappings
+    exists, but no trusted provisioning workflow or ownership enforcement
+    exists; customer self-service remains disabled. The customerId field is an
+    operations reference and never establishes caller ownership.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+x-required-authorities:
+  quoteReads: SCOPE_quotes:read
+  quoteCreationAndLifecycle: SCOPE_quotes:write
+  ownership: >-
+    No customer self-service scope is accepted. Before enabling it, establish
+    trusted provisioning and enforce ownership for quote UUIDs, customer
+    filters, creation, submit, and cancel using the validated issuer and subject.
+paths:
+  /api/v1/quotes:
+    post:
+      operationId: createQuote
+      summary: Create an unpriced draft quote
+      description: >-
+        Validates that the customer exists and the exact product version belongs
+        to the selected active product and is active at coverageEffectiveAt.
+        If omitted, coverageEffectiveAt defaults to the server Clock instant.
+        The response copies the selected version's coverage definitions into an
+        immutable quote snapshot. This operation requires SCOPE_quotes:write.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateQuoteRequest'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Quote created; pricing is not calculated.
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+            X-Correlation-ID:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quote' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+    get:
+      operationId: listQuotes
+      summary: List quotes
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: customerId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: sortBy
+          in: query
+          schema: { type: string, enum: [quoteNumber, status, createdAt, updatedAt], default: createdAt }
+        - name: direction
+          in: query
+          schema: { type: string, enum: [ASC, DESC], default: DESC }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Page of quotes, ordered with ID as a stable tie-breaker.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuotePage' }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/v1/quotes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: '#/components/parameters/CorrelationId'
+    get:
+      operationId: getQuote
+      summary: Retrieve a quote and its immutable coverage snapshot
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Quote details; premium is not part of this response.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quote' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/v1/quotes/{id}/submit:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: '#/components/parameters/CorrelationId'
+    post:
+      operationId: submitQuote
+      summary: Move a draft quote to pending underwriting
+      description: >-
+        The status does not imply an underwriting service or assessment exists.
+        Repeated or otherwise invalid transitions return 409 Conflict; the action
+        is intentionally not idempotent.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Quote submitted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quote' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /api/v1/quotes/{id}/cancel:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: '#/components/parameters/CorrelationId'
+    post:
+      operationId: cancelQuote
+      summary: Cancel a draft or pending quote
+      description: Repeated or otherwise invalid transitions return 409 Conflict; the action is intentionally not idempotent.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Quote cancelled.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quote' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    CorrelationId:
+      name: X-Correlation-ID
+      in: header
+      required: false
+      schema: { type: string, maxLength: 64 }
+  responses:
+    Problem:
+      description: RFC 9457 problem response with a correlationId extension.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid bearer JWT
+      headers:
+        X-Correlation-ID: { schema: { type: string, maxLength: 64 } }
+        WWW-Authenticate: { schema: { type: string }, description: Bearer authentication challenge }
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Forbidden:
+      description: Valid identity without the required scope
+      headers: { X-Correlation-ID: { schema: { type: string, maxLength: 64 } } }
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+  schemas:
+    CreateQuoteRequest:
+      type: object
+      additionalProperties: false
+      required: [customerId, productId, productVersionId, vehicle]
+      properties:
+        customerId: { type: string, format: uuid }
+        productId: { type: string, format: uuid }
+        productVersionId: { type: string, format: uuid }
+        coverageEffectiveAt: { type: string, format: date-time, description: Defaults to current server Clock instant when omitted. }
+        vehicle: { $ref: '#/components/schemas/VehicleRisk' }
+    VehicleRisk:
+      type: object
+      additionalProperties: false
+      required: [vehicleCategory, manufacturer, model, manufactureYear, usageCategory]
+      properties:
+        vehicleCategory: { type: string, enum: [CAR, MOTORCYCLE, COMMERCIAL_VEHICLE, OTHER] }
+        manufacturer: { type: string, minLength: 1, maxLength: 120 }
+        model: { type: string, minLength: 1, maxLength: 120 }
+        manufactureYear: { type: integer, minimum: 1886, maximum: 9999, description: Must not be after the current server year. }
+        registrationNumber: { type: [string, 'null'], maxLength: 32, description: Optional identifying data; trim whitespace only. }
+        fuelType: { type: [string, 'null'], enum: [PETROL, DIESEL, ELECTRIC, HYBRID, OTHER, null] }
+        usageCategory: { type: string, enum: [PRIVATE, COMMERCIAL, OTHER] }
+        declaredVehicleValue:
+          type: [number, 'null']
+          minimum: 0.0001
+          maximum: 999999999999.9999
+          multipleOf: 0.0001
+          description: Optional positive amount with at most four fractional digits; the fractional amount must fit the selected currency's ISO 4217 minor unit. Must be supplied with currency.
+        declaredVehicleCurrency:
+          type: [string, 'null']
+          pattern: '^[A-Za-z]{3}$'
+          description: Supported ISO 4217 currency code; must be supplied with value.
+    Quote:
+      type: object
+      required: [id, quoteNumber, customerId, productId, productVersionId, status, pricingStatus, coverageEffectiveAt, expiresAt, createdAt, updatedAt, vehicle, coverageSnapshot]
+      properties:
+        id: { type: string, format: uuid }
+        quoteNumber: { type: string, pattern: '^QTE-[0-9A-F]{32}$' }
+        customerId: { type: string, format: uuid }
+        productId: { type: string, format: uuid }
+        productVersionId: { type: string, format: uuid }
+        status: { type: string, enum: [DRAFT, PENDING_UNDERWRITING, CANCELLED] }
+        pricingStatus: { type: string, enum: [NOT_CALCULATED] }
+        coverageEffectiveAt: { type: string, format: date-time }
+        expiresAt: { type: [string, 'null'], format: date-time, description: Null until pricing and expiry policy are defined. }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        vehicle: { $ref: '#/components/schemas/VehicleRisk' }
+        coverageSnapshot:
+          type: array
+          items: { $ref: '#/components/schemas/CoverageSnapshot' }
+      description: No premium field is returned; pricing is NOT_CALCULATED.
+    CoverageSnapshot:
+      type: object
+      required: [id, sourceProductVersionId, coverageCode, displayName, coverageType, mandatory, optional, available, snapshotCreatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        sourceProductVersionId: { type: string, format: uuid }
+        coverageCode: { type: string }
+        displayName: { type: string }
+        description: { type: [string, 'null'] }
+        coverageType: { type: string, enum: [THIRD_PARTY_LIABILITY, OWN_DAMAGE, PERSONAL_ACCIDENT, ROADSIDE_ASSISTANCE, OTHER] }
+        mandatory: { type: boolean }
+        optional: { type: boolean }
+        available: { type: boolean }
+        snapshotCreatedAt: { type: string, format: date-time }
+    QuotePage:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Quote' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+    Problem:
+      type: object
+      required: [type, title, status, detail, instance, code, correlationId]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri-reference }
+        code: { type: string }
+        correlationId: { type: string }

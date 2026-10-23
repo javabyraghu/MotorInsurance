@@ -23,6 +23,8 @@ public class CustomerService {
         return repository.save(Customer.register(UUID.randomUUID(), first, last, email, phone, dob, clock));
     }
     @Transactional(readOnly = true)
+    public boolean exists(UUID id) { return repository.existsById(id); }
+    @Transactional(readOnly = true)
     public Customer get(UUID id) { return repository.findById(id).orElseThrow(CustomerService::notFound); }
     @Transactional(readOnly = true)
     public Page<Customer> list(int page, int size, String sort, Sort.Direction direction) {

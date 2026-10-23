@@ -44,6 +44,22 @@ public class ProductService {
                 Sort.by(direction, sortBy).and(Sort.by(Sort.Direction.ASC, "id"))));
     }
 
+    public ProductQuoteConfiguration quoteConfiguration(UUID productId, UUID versionId, Instant effectiveAt) {
+        Product product = lockProduct(productId);
+        ProductVersion version = versions.findByIdAndProduct_Id(versionId, productId)
+                .orElseThrow(ProductService::notFound);
+        if (product.getStatus() != ProductStatus.ACTIVE || version.getStatus() != ProductVersionStatus.ACTIVE
+                || version.getEffectiveFrom().isAfter(effectiveAt)
+                || (version.getEffectiveTo() != null && !effectiveAt.isBefore(version.getEffectiveTo()))) {
+            throw conflict("Selected product version is not active at the requested coverage instant");
+        }
+        return new ProductQuoteConfiguration(productId, versionId, version.getCoverages().stream()
+                .map(coverage -> new ProductQuoteConfiguration.Coverage(coverage.getCoverageCode(),
+                        coverage.getDisplayName(), coverage.getDescription(), coverage.getCoverageType(),
+                        coverage.isMandatory(), coverage.isOptional(), coverage.isAvailable()))
+                .toList());
+    }
+
     public Product updateDraft(UUID id, String name, String description, ProductType type) {
         Product product = lockProduct(id);
         if (product.getStatus() != ProductStatus.DRAFT) throw conflict("Only draft products can be edited");
