@@ -1,0 +1,7 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/motor_policies}
+    username: ${DATABASE_USER:motorsure}
+    password: ${DATABASE_PASSWORD:motorsure_dev}
+frontend:
+  origin: ${FRONTEND_ORIGIN:http://localhost:5173}

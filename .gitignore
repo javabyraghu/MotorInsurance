@@ -1,0 +1,24 @@
+# Java and Maven
+target/
+**/target/
+
+# Node.js and Vite
+node_modules/
+**/node_modules/
+frontend/dist/
+
+# IDE files
+.idea/
+**/.idea/
+.vscode/
+*.iml
+
+# Local environment files (keep examples)
+.env
+**/.env
+!.env.example
+!**/.env.example
+
+# OS files
+.DS_Store
+**/.DS_Store

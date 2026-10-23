@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/motor_quotes}
+    username: ${DATABASE_USER:motorsure}
+    password: ${DATABASE_PASSWORD:motorsure_dev}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+frontend:
+  origin: ${FRONTEND_ORIGIN:http://localhost:5173}

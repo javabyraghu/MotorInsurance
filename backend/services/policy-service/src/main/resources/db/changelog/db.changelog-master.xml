@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="policy-001-create-policies" author="motorsure">
+        <createTable tableName="policies">
+            <column name="id" type="UUID"><constraints primaryKey="true" nullable="false" primaryKeyName="pk_policies"/></column>
+            <column name="customer_name" type="VARCHAR(160)"><constraints nullable="false"/></column>
+            <column name="vehicle_registration" type="VARCHAR(16)"><constraints nullable="false"/></column>
+            <column name="vehicle_make" type="VARCHAR(80)"><constraints nullable="false"/></column>
+            <column name="cover_type" type="VARCHAR(32)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(24)" defaultValue="ACTIVE"><constraints nullable="false"/></column>
+            <column name="start_date" type="DATE"><constraints nullable="false"/></column>
+            <column name="end_date" type="DATE"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addCheckConstraint tableName="policies" constraintName="ck_policies_term">end_date &gt; start_date</addCheckConstraint>
+        <createIndex tableName="policies" indexName="ix_policies_registration"><column name="vehicle_registration"/></createIndex>
+        <createIndex tableName="policies" indexName="ix_policies_status_end_date"><column name="status"/><column name="end_date"/></createIndex>
+    </changeSet>
+</databaseChangeLog>

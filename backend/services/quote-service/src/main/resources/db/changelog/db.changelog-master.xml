@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="quote-001-create-quotes" author="motorsure">
+        <createTable tableName="quotes">
+            <column name="id" type="UUID"><constraints primaryKey="true" nullable="false" primaryKeyName="pk_quotes"/></column>
+            <column name="customer_name" type="VARCHAR(160)"><constraints nullable="false"/></column>
+            <column name="vehicle_registration" type="VARCHAR(16)"><constraints nullable="false"/></column>
+            <column name="vehicle_make" type="VARCHAR(80)"><constraints nullable="false"/></column>
+            <column name="cover_type" type="VARCHAR(32)"><constraints nullable="false"/></column>
+            <column name="annual_premium" type="NUMERIC(12,2)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(24)" defaultValue="READY"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addCheckConstraint tableName="quotes" constraintName="ck_quotes_premium_nonnegative">annual_premium &gt;= 0</addCheckConstraint>
+        <createIndex tableName="quotes" indexName="ix_quotes_created_at"><column name="created_at" descending="true"/></createIndex>
+        <createIndex tableName="quotes" indexName="ix_quotes_registration"><column name="vehicle_registration"/></createIndex>
+    </changeSet>
+    <changeSet id="quote-002-create-outbox" author="motorsure">
+        <createTable tableName="outbox_events">
+            <column name="id" type="UUID"><constraints primaryKey="true" nullable="false" primaryKeyName="pk_outbox_events"/></column>
+            <column name="aggregate_type" type="VARCHAR(64)"><constraints nullable="false"/></column>
+            <column name="aggregate_id" type="VARCHAR(64)"><constraints nullable="false"/></column>
+            <column name="event_type" type="VARCHAR(128)"><constraints nullable="false"/></column>
+            <column name="payload" type="TEXT"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="published_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <createIndex tableName="outbox_events" indexName="ix_outbox_unpublished"><column name="published_at"/><column name="created_at"/></createIndex>
+    </changeSet>
+</databaseChangeLog>
