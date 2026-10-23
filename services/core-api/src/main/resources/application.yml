@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: core-api
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/motor_core}
+    username: ${DATABASE_USER:motorsure}
+    password: ${DATABASE_PASSWORD:}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  jackson:
+    time-zone: UTC
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+server:
+  shutdown: graceful
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: false
+
+logging:
+  structured:
+    format:
+      console: logstash
+  level:
+    root: INFO
+    com.motorsure.coreapi: INFO

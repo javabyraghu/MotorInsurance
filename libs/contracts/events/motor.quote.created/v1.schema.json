@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://motorsure.dev/contracts/events/motor.quote.created/v1.schema.json",
+  "title": "Motor quote created event v1",
+  "description": "Published when the quote service persists a new quote.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "quoteId",
+    "customerName",
+    "vehicleRegistration",
+    "vehicleMake",
+    "coverType",
+    "annualPremium",
+    "createdAt"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "quoteId": { "type": "string", "format": "uuid" },
+    "customerName": { "type": "string", "maxLength": 160 },
+    "vehicleRegistration": { "type": "string", "maxLength": 16 },
+    "vehicleMake": { "type": "string", "maxLength": 80 },
+    "coverType": { "type": "string", "enum": ["Comprehensive", "Third party"] },
+    "annualPremium": { "type": "number", "minimum": 0 },
+    "createdAt": { "type": "string", "format": "date-time" }
+  }
+}

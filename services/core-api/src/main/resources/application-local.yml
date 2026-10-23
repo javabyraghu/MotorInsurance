@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/motor_core}
+    username: ${DATABASE_USER:motorsure}
+    password: ${DATABASE_PASSWORD:motorsure_dev}

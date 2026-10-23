@@ -1,24 +1,54 @@
 # Java and Maven
 target/
 **/target/
+*.class
+*.log
+hs_err_pid*
 
 # Node.js and Vite
 node_modules/
 **/node_modules/
-frontend/dist/
+apps/web/dist/
+apps/web/coverage/
 
 # IDE files
 .idea/
 **/.idea/
 .vscode/
 *.iml
+.project
+.classpath
+.settings/
 
-# Local environment files (keep examples)
+# Local environment files and generated secrets (keep examples)
 .env
+.env.*
 **/.env
+**/.env.*
 !.env.example
+!.env.*.example
 !**/.env.example
+!**/.env.*.example
+**/.secrets/
+**/secrets/
 
 # OS files
 .DS_Store
 **/.DS_Store
+
+# Terraform state and local working data
+.terraform/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+!*.tfvars.example
+!**/*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Dependency lockfiles and Maven Wrapper files are intentionally not ignored.
