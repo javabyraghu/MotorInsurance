@@ -15,7 +15,7 @@ MotorSure is being developed incrementally as a secure motor insurance managemen
 
 The current service code and migrations are preserved. The target stack and current implementation are not yet aligned; resolving that is an explicit architecture milestone, not an assumed code migration. See [ADR 0001](docs/adr/0001-initial-architecture.md).
 
-The existing backend has test dependencies but no checked-in automated tests or CI workflow yet. The web app has not been built as part of this foundation milestone.
+The existing backend includes service tests and the Core API has unit and Testcontainers integration coverage. No CI workflow is configured yet.
 
 ## Repository layout
 
@@ -31,7 +31,7 @@ motor-insurance-platform/
 │   ├── customer-service/           # Planned; not runnable yet
 │   └── ai-assistant-service/       # Planned; not runnable yet
 ├── libs/contracts/
-│   ├── openapi/                    # Versioned HTTP API contracts (to be added)
+│   ├── openapi/                    # Versioned HTTP API contracts
 │   └── events/                     # Versioned event schemas
 ├── docs/
 │   ├── architecture/
@@ -96,7 +96,7 @@ For full local steps and shutdown guidance, see the [local development runbook](
 
 ## Core API foundation
 
-The new `services/core-api` build is independent of the existing `services/pom.xml` prototype parent. It uses Java 21, Spring Boot 3.5.16, Maven Wrapper, PostgreSQL, and Flyway. It currently exposes `GET /api/v1/health` and actuator health/info endpoints; business modules and schema migrations will be added as their first real workflows are implemented.
+The new `services/core-api` build is independent of the existing `services/pom.xml` prototype parent. It uses Java 21, Spring Boot 3.5.16, Maven Wrapper, PostgreSQL, and Flyway. It provides Customer Management and a Product catalog with versioned coverage configuration, plus `GET /api/v1/health`, actuator health/info endpoints, RFC 9457 error responses, and validated `X-Correlation-ID` propagation. Migrations V1–V3 create the customer, product, version, and coverage tables. Authentication and authorization are not implemented. See the [Customer](libs/contracts/openapi/customer-api.yaml) and [Product](libs/contracts/openapi/product-api.yaml) OpenAPI contracts, [Core API package and lifecycle guidance](docs/architecture/core-api-foundation.md), and [persistence and API errors](docs/architecture/persistence-and-api-errors.md).
 
 Start its isolated PostgreSQL container and Core API:
 
@@ -124,6 +124,34 @@ curl http://localhost:8080/actuator/health
 curl http://localhost:8080/actuator/info
 ~~~
 
+Create and list individual customers:
+
+~~~bash
+curl -i -X POST http://localhost:8080/api/v1/customers \
+  -H 'Content-Type: application/json' \
+  -d '{"firstName":"Asha","lastName":"Rao","email":"asha.rao@example.test","dateOfBirth":"1988-04-12"}'
+curl 'http://localhost:8080/api/v1/customers?page=0&size=20&sortBy=createdAt&direction=DESC'
+~~~
+
+Create a draft Product, attach a versioned coverage configuration, then activate its version:
+
+~~~bash
+curl -i -X POST http://localhost:8080/api/v1/products \
+  -H 'Content-Type: application/json' \
+  -d '{"productCode":"MOTOR-TP","name":"Motor Third Party","productType":"THIRD_PARTY"}'
+curl -i -X POST http://localhost:8080/api/v1/products/{productId}/versions \
+  -H 'Content-Type: application/json' \
+  -d '{"effectiveFrom":"2026-01-01T00:00:00Z","coverages":[{"code":"TP_LIABILITY","displayName":"Third-party liability","coverageType":"THIRD_PARTY_LIABILITY","mandatory":true,"optional":false,"available":true}]}'
+curl -X POST http://localhost:8080/api/v1/products/{productId}/versions/{versionId}/activate
+curl 'http://localhost:8080/api/v1/products/available?at=2026-06-01T00:00:00Z'
+~~~
+
+Run all Core API checks, including the PostgreSQL Testcontainers tests (Docker required):
+
+~~~bash
+./services/core-api/mvnw -B -ntp -f services/core-api/pom.xml clean verify
+~~~
+
 ## Planned development stages
 
 1. Establish and validate the architecture and dependency baseline; reconcile the existing prototype with the target Spring Boot, migration, and messaging choices.
@@ -134,7 +162,7 @@ curl http://localhost:8080/actuator/info
 6. Add an AI assistant with permission-aware retrieval and tightly controlled actions; keep decisions and approvals in deterministic business workflows.
 7. Deploy a small, cost-reviewed AWS footprint using ECS Fargate, RDS PostgreSQL, S3, and CloudWatch after deployment/security requirements are agreed.
 
-The Core API foundation is now present as a separate build, while the later stages remain plans. Its business modules, production identity/authorization, cloud infrastructure, and domain schema migrations are not implemented yet.
+Customer Management and the Product catalog/versioning are implemented in the independent Core API. Quote and subsequent modules, production identity/authorization, and cloud infrastructure remain future stages.
 
 ## Architecture and security
 

@@ -1,3 +1,3 @@
 # OpenAPI contracts
 
-Place versioned OpenAPI documents here when the public API surface is ready to stabilize. No OpenAPI contract is defined by the foundation milestone. Keep runtime DTOs and service implementation code in their owning service; this directory is for schemas/contracts only.
+Versioned HTTP API contracts live here; see `customer-api.yaml` and `product-api.yaml` for the Core API contracts. Keep runtime DTOs and service implementation code in their owning service; this directory is for schemas/contracts only.

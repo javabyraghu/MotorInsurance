@@ -1,0 +1,252 @@
+openapi: 3.1.0
+info:
+  title: MotorSure Product API
+  version: 1.0.0
+  description: Product catalog, immutable activated configurations, and availability windows. Authentication and authorization are not implemented yet.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/products:
+    post:
+      operationId: createProduct
+      summary: Create a draft product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductWrite' }
+            example: { productCode: MOTOR-TP, name: Motor Third Party, description: Example catalog item, productType: THIRD_PARTY }
+      responses:
+        '201':
+          description: Draft product created
+          headers: { Location: { schema: { type: string, format: uri-reference } }, X-Correlation-ID: { $ref: '#/components/headers/CorrelationId' } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      operationId: listProducts
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Size' }
+        - { $ref: '#/components/parameters/SortBy' }
+        - { $ref: '#/components/parameters/Direction' }
+      responses:
+        '200':
+          description: Product catalog page
+          content: { application/json: { schema: { $ref: '#/components/schemas/ProductPage' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/v1/products/available:
+    get:
+      operationId: listAvailableProducts
+      summary: List products with an active version at a point in time
+      parameters:
+        - name: at
+          in: query
+          description: Defaults to the current UTC instant. Effective intervals use [effectiveFrom, effectiveTo).
+          schema: { type: string, format: date-time }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: sortBy, in: query, schema: { type: string, enum: [productCode, name, productType, status, createdAt, updatedAt], default: name } }
+        - { name: direction, in: query, schema: { type: string, enum: [ASC, DESC], default: ASC } }
+      responses:
+        '200': { description: Available product page, content: { application/json: { schema: { $ref: '#/components/schemas/ProductPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/v1/products/{productId}:
+    parameters:
+      - { name: productId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getProduct
+      responses:
+        '200': { description: Product, content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateDraftProduct
+      description: Metadata can be edited only while the product is DRAFT. Product code is immutable.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ProductUpdate' } } }
+      responses:
+        '200': { description: Updated product, content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/products/{productId}/deactivate:
+    parameters:
+      - { name: productId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: deactivateProduct
+      responses:
+        '200': { description: Inactive product, content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/products/{productId}/versions:
+    parameters:
+      - { name: productId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: createDraftProductVersion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VersionWrite' }
+            example:
+              effectiveFrom: '2026-01-01T00:00:00Z'
+              effectiveTo: null
+              coverages:
+                - { code: TP_LIABILITY, displayName: Third-party liability, coverageType: THIRD_PARTY_LIABILITY, mandatory: true, optional: false, available: true }
+                - { code: ROADSIDE, displayName: Roadside assistance, coverageType: ROADSIDE_ASSISTANCE, mandatory: false, optional: true, available: true }
+      responses:
+        '201':
+          description: Draft version created
+          headers: { Location: { schema: { type: string, format: uri-reference } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/ProductVersion' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      operationId: listProductVersions
+      responses:
+        '200': { description: Versions ordered by descending version number, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ProductVersion' } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/products/{productId}/versions/{versionId}:
+    parameters:
+      - { name: productId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getProductVersion
+      responses:
+        '200': { description: Product version, content: { application/json: { schema: { $ref: '#/components/schemas/ProductVersion' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateDraftProductVersion
+      description: Only DRAFT versions can be edited. Create a new version for configuration changes after activation.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionWrite' } } }
+      responses:
+        '200': { description: Updated draft version, content: { application/json: { schema: { $ref: '#/components/schemas/ProductVersion' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/products/{productId}/versions/{versionId}/activate:
+    parameters:
+      - { name: productId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: activateProductVersion
+      responses:
+        '200': { description: Activated version, content: { application/json: { schema: { $ref: '#/components/schemas/ProductVersion' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/products/{productId}/versions/{versionId}/deactivate:
+    parameters:
+      - { name: productId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: deactivateProductVersion
+      responses:
+        '200': { description: Inactive version, content: { application/json: { schema: { $ref: '#/components/schemas/ProductVersion' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+components:
+  headers:
+    CorrelationId:
+      schema: { type: string, maxLength: 64 }
+      description: Returned in X-Correlation-ID on every response
+  parameters:
+    Page: { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+    Size: { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+    SortBy: { name: sortBy, in: query, schema: { type: string, enum: [productCode, name, productType, status, createdAt, updatedAt], default: createdAt } }
+    Direction: { name: direction, in: query, schema: { type: string, enum: [ASC, DESC], default: DESC } }
+  schemas:
+    ProductWrite:
+      type: object
+      additionalProperties: false
+      required: [productCode, name, productType]
+      properties:
+        productCode: { type: string, pattern: '^[A-Za-z][A-Za-z0-9_-]{1,31}$' }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        productType: { $ref: '#/components/schemas/ProductType' }
+    ProductUpdate:
+      type: object
+      additionalProperties: false
+      required: [name, productType]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        productType: { $ref: '#/components/schemas/ProductType' }
+    Product:
+      type: object
+      required: [id, productCode, name, productType, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_-]{1,31}$' }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        productType: { $ref: '#/components/schemas/ProductType' }
+        status: { $ref: '#/components/schemas/ProductStatus' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProductType: { type: string, enum: [THIRD_PARTY, COMPREHENSIVE, OTHER] }
+    ProductStatus: { type: string, enum: [DRAFT, ACTIVE, INACTIVE] }
+    ProductVersionStatus: { type: string, enum: [DRAFT, ACTIVE, INACTIVE] }
+    CoverageType: { type: string, enum: [THIRD_PARTY_LIABILITY, OWN_DAMAGE, PERSONAL_ACCIDENT, ROADSIDE_ASSISTANCE, OTHER] }
+    Coverage:
+      type: object
+      additionalProperties: false
+      required: [code, displayName, coverageType, mandatory, optional, available]
+      properties:
+        code: { type: string, pattern: '^[A-Za-z][A-Za-z0-9_]{1,63}$' }
+        displayName: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        coverageType: { $ref: '#/components/schemas/CoverageType' }
+        mandatory: { type: boolean }
+        optional: { type: boolean }
+        available: { type: boolean }
+      description: Exactly one of mandatory and optional must be true; mandatory cover must be available. No limits, deductibles, or rates are configured by this API.
+    VersionWrite:
+      type: object
+      additionalProperties: false
+      required: [effectiveFrom, coverages]
+      properties:
+        effectiveFrom: { type: string, format: date-time }
+        effectiveTo: { type: [string, 'null'], format: date-time }
+        coverages: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/Coverage' } }
+    ProductVersion:
+      type: object
+      required: [id, productId, versionNumber, effectiveFrom, status, createdAt, coverages]
+      properties:
+        id: { type: string, format: uuid }
+        productId: { type: string, format: uuid }
+        versionNumber: { type: integer, minimum: 1 }
+        effectiveFrom: { type: string, format: date-time }
+        effectiveTo: { type: [string, 'null'], format: date-time }
+        status: { $ref: '#/components/schemas/ProductVersionStatus' }
+        createdAt: { type: string, format: date-time }
+        coverages: { type: array, items: { $ref: '#/components/schemas/Coverage' } }
+    ProductPage:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Product' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+    Problem:
+      type: object
+      required: [type, title, status, detail, instance, code, correlationId]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri-reference }
+        code: { type: string }
+        correlationId: { type: string }
+        invalidParams: { type: array, items: { type: object, properties: { name: { type: string }, reason: { type: string } } } }
+  responses:
+    BadRequest: { description: Invalid request, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+    NotFound: { description: Resource not found, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+    Conflict: { description: Lifecycle, uniqueness, or effective-window conflict, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }

@@ -6,8 +6,8 @@ Start with these as modules in a single Core API deployable. A module owns its m
 
 | Capability | Initial Core API module responsibility | Data ownership |
 | --- | --- | --- |
-| Customer | Customer profile and references to authenticated identities | Contact/profile data and customer preferences |
-| Product | Coverage options, eligibility configuration, and versioned product definitions | Product/rule configuration and effective dates |
+| Customer | Individual customer profile and later references to authenticated identities | Name, normalized email, optional phone, date of birth, and lifecycle status; no credentials |
+| Product | Product catalog, versioned configuration, coverage definitions, and effective availability windows | Product metadata, version lifecycle, and normalized version coverage definitions; no rates, quotes, or eligibility decisions |
 | Quote | Rating inputs, quote snapshots, premium result, currency, and quote lifecycle | Quote request and immutable priced quote snapshot |
 | Underwriting | Risk questions, evidence, referrals, decisions, and decision rationale | Underwriting case and decision record |
 | Policy | Issuance, endorsements, renewal, cancellation, coverage dates, and policy documents references | Issued contract and coverage lifecycle |

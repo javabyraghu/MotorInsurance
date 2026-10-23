@@ -8,6 +8,8 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    validate-on-migrate: true
+    clean-disabled: true
   jpa:
     open-in-view: false
     hibernate:
@@ -18,12 +20,19 @@ spring:
           time_zone: UTC
   jackson:
     time-zone: UTC
+    deserialization:
+      fail-on-unknown-properties: true
   lifecycle:
     timeout-per-shutdown-phase: 20s
 
 server:
   shutdown: graceful
   forward-headers-strategy: framework
+  error:
+    include-exception: false
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
 
 management:
   endpoints:

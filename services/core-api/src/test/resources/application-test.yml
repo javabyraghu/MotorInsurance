@@ -2,6 +2,7 @@ spring:
   flyway:
     enabled: true
     clean-disabled: true
+    validate-on-migrate: true
   jpa:
     open-in-view: false
     hibernate:

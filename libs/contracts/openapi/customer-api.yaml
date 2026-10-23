@@ -1,0 +1,146 @@
+openapi: 3.1.0
+info:
+  title: MotorSure Customer API
+  version: 1.0.0
+  description: Individual customer management. Authentication and authorization are not implemented yet.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/customers:
+    post:
+      operationId: createCustomer
+      summary: Create an individual customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerWrite' }
+            example:
+              firstName: Asha
+              lastName: Rao
+              email: asha.rao@example.test
+              phoneNumber: '+1 415 555 0132'
+              dateOfBirth: '1988-04-12'
+      responses:
+        '201':
+          description: Customer created
+          headers:
+            Location: { schema: { type: string, format: uri-reference } }
+            X-Correlation-ID: { $ref: '#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Customer' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      operationId: listCustomers
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - name: sortBy
+          in: query
+          schema: { type: string, enum: [customerNumber, firstName, lastName, createdAt, updatedAt], default: createdAt }
+        - { name: direction, in: query, schema: { type: string, enum: [ASC, DESC], default: DESC } }
+      responses:
+        '200':
+          description: Stable page of customers; equal sort values are ordered by ID
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/v1/customers/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getCustomer
+      responses:
+        '200':
+          description: Customer
+          content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateCustomer
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CustomerWrite' } } }
+      responses:
+        '200':
+          description: Updated customer
+          content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/customers/{id}/status:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      operationId: changeCustomerStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [status], properties: { status: { type: string, enum: [ACTIVE, INACTIVE] } }, additionalProperties: false }
+      responses:
+        '200':
+          description: Customer status changed
+          content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  headers:
+    CorrelationId:
+      schema: { type: string, maxLength: 64 }
+      description: Correlation identifier returned on every response
+  schemas:
+    CustomerWrite:
+      type: object
+      additionalProperties: false
+      required: [firstName, lastName, email, dateOfBirth]
+      properties:
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 100 }
+        email: { type: string, format: email, maxLength: 254, description: Validated for syntax, then trimmed and lowercased using Locale.ROOT. }
+        phoneNumber: { type: [string, 'null'], maxLength: 32, description: Optional; conservative international punctuation and digits accepted. }
+        dateOfBirth: { type: string, format: date, description: Must not be in the future. }
+    Customer:
+      allOf:
+        - $ref: '#/components/schemas/CustomerWrite'
+        - type: object
+          required: [id, customerNumber, status, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            customerNumber: { type: string, pattern: '^CUS-[0-9A-F]{32}$' }
+            status: { type: string, enum: [ACTIVE, INACTIVE] }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    CustomerPage:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Customer' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+    Problem:
+      type: object
+      required: [type, title, status, detail, instance, code, correlationId]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri-reference }
+        code: { type: string }
+        correlationId: { type: string }
+        invalidParams: { type: array, items: { type: object, properties: { name: { type: string }, reason: { type: string } } } }
+  responses:
+    BadRequest:
+      description: Invalid request
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    NotFound:
+      description: Customer not found
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Conflict:
+      description: Data integrity or optimistic locking conflict
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
